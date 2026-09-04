@@ -1,0 +1,26 @@
+[
+  {
+    "ambito": "Alumno",
+    "filas": 720,
+    "columnas": 13,
+    "activos": 720
+  },
+  {
+    "ambito": "Curso",
+    "filas": 720,
+    "columnas": 13,
+    "activos": 720
+  },
+  {
+    "ambito": "Nivel",
+    "filas": 720,
+    "columnas": 13,
+    "activos": 720
+  },
+  {
+    "ambito": "Colegio",
+    "filas": 720,
+    "columnas": 13,
+    "activos": 720
+  }
+]

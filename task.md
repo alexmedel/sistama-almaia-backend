@@ -1,0 +1,11 @@
+- [x] Paso 1: Preparación del esquema y funciones en Supabase
+  - [x] Crear esquema y tablas staging (ya existen en la base de datos)
+  - [x] Ejecutar `docs/sql/2026-07-09_staging_rpc_loader.sql`
+  - [x] Ejecutar `docs/sql/migrar_colegio_desde_staging.sql`
+  - [x] Ejecutar `docs/sql/rollback_colegio_desde_staging.sql`
+  - [x] Ejecutar `docs/sql/crear_credenciales_desde_staging.sql`
+- [x] Paso 2: Preparar la plantilla Excel Demo con la estructura pautada
+- [x] Paso 3: Carga del Excel en Staging vía API local (`POST /api/v1/colegios/carga-staging`)
+- [x] Paso 4: Ejecutar migración final a producción en el SQL Editor (`staging.migrar_colegio_desde_staging`)
+- [x] Paso 5: Generar credenciales de usuario en el SQL Editor (`staging.crear_credenciales_desde_staging`)
+- [x] Paso 6: Validaciones finales y cargas adicionales (preguntas/informes y roles especiales)

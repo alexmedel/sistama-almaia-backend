@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "c95efb9c-76e7-4669-beb9-acf4eab3d94a"
+      }
+    },
+    "android": {
+      "package": "com.dxgabalt.almaiaapi"
+    },
+    "ios": {
+      "bundleIdentifier": "com.dxgabalt.almaiaapi",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

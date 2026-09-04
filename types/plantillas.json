@@ -1,0 +1,95 @@
+{
+    "preguntas": [
+        {
+            "obligatorio": true,
+            "alternativas": [],
+            "pregunta_orden": 1,
+            "pregunta_texto": "¿cómo te sientes hoy?",
+            "tipo_pregunta_id": 1,
+            "plantilla_pregunta_id": 1
+        },
+        {
+            "obligatorio": true,
+            "alternativas": [
+                {
+                    "peso": 5,
+                    "orden": 1,
+                    "alternativa_texto": "muy buena",
+                    "plantilla_alternativa_id": 1
+                },
+                {
+                    "peso": 4,
+                    "orden": 2,
+                    "alternativa_texto": "buena",
+                    "plantilla_alternativa_id": 2
+                },
+                {
+                    "peso": 3,
+                    "orden": 3,
+                    "alternativa_texto": "regular",
+                    "plantilla_alternativa_id": 3
+                },
+                {
+                    "peso": 2,
+                    "orden": 4,
+                    "alternativa_texto": "mala",
+                    "plantilla_alternativa_id": 4
+                },
+                {
+                    "peso": 1,
+                    "orden": 5,
+                    "alternativa_texto": "muy mala",
+                    "plantilla_alternativa_id": 5
+                }
+            ],
+            "pregunta_orden": 2,
+            "pregunta_texto": "califica tu relación con tus compañeros",
+            "tipo_pregunta_id": 2,
+            "plantilla_pregunta_id": 2
+        },
+        {
+            "obligatorio": false,
+            "alternativas": [
+                {
+                    "peso": 5,
+                    "orden": 1,
+                    "alternativa_texto": "muy alto",
+                    "plantilla_alternativa_id": 6
+                },
+                {
+                    "peso": 4,
+                    "orden": 2,
+                    "alternativa_texto": "alto",
+                    "plantilla_alternativa_id": 7
+                },
+                {
+                    "peso": 3,
+                    "orden": 3,
+                    "alternativa_texto": "medio",
+                    "plantilla_alternativa_id": 8
+                },
+                {
+                    "peso": 2,
+                    "orden": 4,
+                    "alternativa_texto": "bajo",
+                    "plantilla_alternativa_id": 9
+                },
+                {
+                    "peso": 1,
+                    "orden": 5,
+                    "alternativa_texto": "muy bajo",
+                    "plantilla_alternativa_id": 10
+                }
+            ],
+            "pregunta_orden": 3,
+            "pregunta_texto": "califica tu nivel de estrés actual",
+            "tipo_pregunta_id": 2,
+            "plantilla_pregunta_id": 3
+        }
+    ],
+    "plantilla_id": 1,
+    "plantilla_nombre": "clima escolar básico",
+    "tipo_encuesta_id": 3,
+    "concepto_asociado_id": 2,
+    "plantilla_descripcion": "plantilla estandar para medir clima social y convivencia"
+}
