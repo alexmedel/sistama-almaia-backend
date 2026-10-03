@@ -35,5 +35,5 @@ router.get("/", sessionAuth, async (_req: Request, res: Response): Promise<void>
     errorHandler.handleError(error, res, "PaletaColoresService.obtenerPaleta");
   }
 });
-
+ 
 export default router;
