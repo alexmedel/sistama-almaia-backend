@@ -180,7 +180,7 @@ router.post(
   sessionAuth,
   AuthService.registerMasivo
 );
-
+ 
 /**
  * @swagger
  * /api/v1/auth/update-password:
