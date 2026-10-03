@@ -26,11 +26,11 @@ describe("auth credential hygiene", () => {
     expect(authCode).not.toMatch(/password\s*:\s*["']12345678["']/);
   });
 
-  it("protects bulk registration with sessionAuth before upload handling", () => {
+  it("protects bulk registration with sessionAuth and accepts JSON without upload middleware", () => {
     const authRoutes = readProjectFile("src/routes/auth.routes.ts");
 
     expect(authRoutes).toMatch(
-      /router\.post\(\s*["']\/registro\/masivo["']\s*,\s*sessionAuth\s*,\s*upload\.single\(["']file["']\)\s*,\s*AuthService\.registerMasivo\s*\)/
+      /router\.post\(\s*["']\/registro\/masivo["']\s*,\s*sessionAuth\s*,\s*AuthService\.registerMasivo\s*\)/
     );
   });
 });

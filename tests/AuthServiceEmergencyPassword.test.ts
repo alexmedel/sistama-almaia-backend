@@ -55,6 +55,26 @@ describe("AuthService.updateUserPasswordById", () => {
     jest.clearAllMocks();
   });
 
+  it("bloquea el cambio si el usuario no es administrador", async () => {
+    const { AuthService } = require("../src/infrestructure/server/auth/AuthService");
+    const { FormatResponse } = require("../src/helpers/Response");
+
+    const req = {
+      user: { rol_id: 4 },
+      body: {
+        auth_id: "auth-user-id",
+        newPassword: "TestPassword!2026",
+      },
+    } as Partial<Request>;
+    const res = {} as Response;
+
+    await AuthService.updateUserPasswordById(req as Request, res);
+
+    expect(FormatResponse).toHaveBeenCalledWith(res, 403, {
+      message: "No autorizado: esta operación solo puede ejecutarla un administrador",
+    });
+  });
+
   it("updates auth password before signing in with the new password", async () => {
     const { AuthService } = require("../src/infrestructure/server/auth/AuthService");
     const { FormatResponse } = require("../src/helpers/Response");

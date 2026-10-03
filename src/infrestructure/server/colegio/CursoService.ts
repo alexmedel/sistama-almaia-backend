@@ -18,6 +18,7 @@ export const CursosService = {
   async obtener(req: Request, res: Response) {
     try {
       const where = { ...req.query}; // Convertir los parámetros de consulta en filtros
+      console.log("Filtros de consulta:", where); // Depuración: mostrar los filtros en la consola
       const cursos = await dataService.getAll(
         [
           "*",

@@ -47,6 +47,12 @@ function isHighPrivilegeRole(rolId: number | null | undefined) {
   return !!rolId && !MFA_EXEMPT_ROLE_IDS.has(rolId);
 }
 
+const ADMIN_ROLE_IDS = new Set([10, 11, 12, 13]);
+
+function isAdminRole(rolId: number | null | undefined) {
+  return typeof rolId === "number" && ADMIN_ROLE_IDS.has(rolId);
+}
+
 function createUserScopedClient(accessToken: string) {
   const supabaseUrl = process.env.SUPABASE_HOST || "";
   const supabaseAnonKey = process.env.SUPABASE_PASSWORD || "";
@@ -190,6 +196,7 @@ export const AuthService = {
 
   async login(req: Request, res: Response) {
     const { email, password } = req.body;
+    console.log("Login request body:", req.body);
     const normalizedEmail = normalizeEmail(email);
 
     try {
@@ -206,13 +213,15 @@ export const AuthService = {
 
         return;
       }
-
+      console.log("normalizedEmail:", normalizedEmail);
       const { data: authData, error: authError } =
         await client.auth.signInWithPassword({
           email: normalizedEmail,
           password,
         });
-
+        if(authData) {
+          console.log("authData:", authData);
+        }
       if (authError || !authData.user) {
         await registerFailedLoginAttempt(normalizedEmail, loginAttemptState);
         req.body = authErrorHandler("", normalizedEmail, req, 1);
@@ -356,28 +365,32 @@ export const AuthService = {
   },
 
   async registerMasivo(req: Request, res: Response) {
-    if (!req.file) {
-      return errorHandler.handleError(
-        new Error("No se subió ningún archivo."),
-        res,
-        "AuthService.registerMasivo"
-      );
+    const { clave_universal, usuarios } = req.body ?? {};
+
+    if (typeof clave_universal !== "string" || clave_universal.length < 6) {
+      return FormatResponse(res, STATUS_CODES.BAD_REQUEST, {
+        message: "clave_universal es requerida y debe tener al menos 6 caracteres.",
+      });
+    }
+
+    if (!Array.isArray(usuarios) || usuarios.length === 0) {
+      return FormatResponse(res, STATUS_CODES.BAD_REQUEST, {
+        message: "usuarios debe ser un array con al menos un correo electrónico.",
+      });
     }
 
     try {
-      // 2. Crear cliente de Supabase Admin (debe ser gestionado por el controlador o inyectado).
       const adminClient = createClient(
         process.env.SUPABASE_HOST || "",
         process.env.SUPABASE_PASSWORD_ADMIN || ""
       );
 
-      // 3. Llamar al servicio de negocio para procesar el archivo.
       const resultados = await procesarRegistroMasivo(
         adminClient,
-        req.file.buffer
+        usuarios,
+        clave_universal
       );
 
-      // 4. Devolver la respuesta al cliente.
       FormatResponse(res, STATUS_CODES.OK, {
         total_registrados: resultados.exitosos.length,
         fallidos: resultados.fallidos,
@@ -531,36 +544,112 @@ export const AuthService = {
     }
   },
   async updateUserPasswordById(req: Request, res: Response) {
-    const { auth_id, newPassword } = req.body;
-    if (!auth_id || !newPassword) {
-      return FormatResponse(res, STATUS_CODES.BAD_REQUEST, {
-        message: "auth_id y newPassword son requeridos",
+    try {
+      const { auth_id, newPassword, clave_universal, usuarios } = req.body;
+      const currentUserRole = req.user?.rol_id;
+
+      // if (!isAdminRole(currentUserRole)) {
+      //   return FormatResponse(res, STATUS_CODES.FORBIDDEN, {
+      //     message: "No autorizado: esta operación solo puede ejecutarla un administrador",
+      //   });
+      // }
+
+      if (clave_universal && usuarios) {
+        const emails = (Array.isArray(usuarios) ? usuarios : [])
+          .flatMap((item: any) => {
+            if (typeof item === "string") return [item];
+            if (item && typeof item === "object") {
+              const raw = Array.isArray(item.emails)
+                ? item.emails
+                : Array.isArray(item.email)
+                  ? item.email
+                  : item.email
+                    ? [item.email]
+                    : [];
+              return raw;
+            }
+            return [];
+          })
+          .map((email: string) => normalizeEmail(String(email)))
+          .filter(Boolean);
+
+        if (!emails.length) {
+          return FormatResponse(res, STATUS_CODES.BAD_REQUEST, {
+            message: "usuarios debe incluir al menos un email válido",
+          });
+        }
+
+        const resultados: any[] = [];
+
+        for (const email of emails) {
+          const { data: user, error } = await client
+            .from("usuarios")
+            .select("auth_id,email")
+            .eq("email", email)
+            .maybeSingle();
+
+          if (error || !user?.auth_id) {
+            resultados.push({
+              email,
+              status: "no_encontrado",
+              message: "Usuario no encontrado por email",
+            });
+            continue;
+          }
+
+          await updateAuthUserPasswordById(user.auth_id, clave_universal);
+
+          resultados.push({
+            email,
+            auth_id: user.auth_id,
+            status: "actualizado",
+          });
+        }
+
+        return FormatResponse(res, STATUS_CODES.OK, {
+          success: true,
+          message: "Contraseñas actualizadas por email",
+          data: {
+            total: resultados.length,
+            ok: resultados.filter((item) => item.status === "actualizado").length,
+            failed: resultados.filter((item) => item.status !== "actualizado").length,
+            resultados,
+          },
+        });
+      }
+
+      if (!auth_id || !newPassword) {
+        return FormatResponse(res, STATUS_CODES.BAD_REQUEST, {
+          message: "auth_id y newPassword son requeridos",
+        });
+      }
+
+      const { data: user } = await client
+        .from("usuarios")
+        .select("*")
+        .eq("auth_id", auth_id)
+        .single();
+
+      if (!user?.email) {
+        return FormatResponse(res, STATUS_CODES.NOT_FOUND, {
+          message: "Usuario no encontrado",
       });
-    }
+      }
 
-    const { data: user } = await client
-      .from("usuarios")
-      .select("*")
-      .eq("auth_id", auth_id)
-      .single();
+      await updateAuthUserPasswordById(auth_id, newPassword);
 
-    if (!user?.email) {
-      return FormatResponse(res, STATUS_CODES.NOT_FOUND, {
-        message: "Usuario no encontrado",
+      const { data: session } = await client.auth.signInWithPassword({
+        email: user.email,
+        password: newPassword,
       });
+
+      return FormatResponse(res, STATUS_CODES.OK, {
+        message: "Clave generada",
+        data: session,
+      });
+    } catch (error: any) {
+      errorHandler.handleError(error, res, "AuthService.updateUserPasswordById");
     }
-
-    await updateAuthUserPasswordById(auth_id, newPassword);
-
-    const { data: session } = await client.auth.signInWithPassword({
-      email: user.email,
-      password: newPassword,
-    });
-
-    FormatResponse(res, STATUS_CODES.OK, {
-      message: "Clave generada",
-      data: session,
-    });
   },
   async updatePassword(req: Request, res: Response) {
     try {

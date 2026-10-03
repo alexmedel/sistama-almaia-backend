@@ -140,10 +140,10 @@ router.post(
 router.post("/registro", AuthService.register);
 /**
  * @swagger
- * /api/v1/auth/update-password:
+ * /api/v1/auth/registro/masivo:
  *   post:
- *     summary: Actualizacion de contraseña
- *     description: Permite actualizar la contraseña de un usuario
+ *     summary: Registro y vinculación masiva de usuarios
+ *     description: Crea o actualiza usuarios de Auth con una clave universal. Los correos deben existir previamente en la tabla usuarios.
  *     tags:
  *       - Autenticación
  *     security:
@@ -154,23 +154,30 @@ router.post("/registro", AuthService.register);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - clave_universal
+ *               - usuarios
  *             properties:
- *               currentPassword:
- *                 type: number
- *                 example: 0
- *               newPassword:
+ *               clave_universal:
  *                 type: string
- *                 example: nuevaContraseña456
+ *                 minLength: 6
+ *               usuarios:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: email
+ *                 example: [usuario1@ejemplo.com, usuario2@ejemplo.com]
  *     responses:
  *       200:
- *         description: Contraseña actualizada exitosamente
+ *         description: Resultado del procesamiento por usuario
+ *       400:
+ *         description: Datos inválidos
  *       500:
  *         description: Error del servidor
  */
 router.post(
   "/registro/masivo",
   sessionAuth,
-  upload.single("file"),
   AuthService.registerMasivo
 );
 
@@ -236,6 +243,12 @@ router.post(
 
 router.post("/update-password", sessionAuth, AuthService.updatePassword);
 //uso de emergencia
+router.post(
+  "/admin/update-password",
+  sessionAuth,
+  AuthService.updateUserPasswordById
+);
+
 router.post(
   "/update-password-emergencia",
   sessionAuth,

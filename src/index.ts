@@ -40,7 +40,7 @@ import PrivacidadRoutes from "./routes/privacidad.routes";
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const normalizeOrigin = (origin: string) => origin.trim().replace(/\/+$/, "");
 

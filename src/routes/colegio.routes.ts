@@ -14,6 +14,7 @@ import { HistorialComunicacionsService } from "../infrestructure/server/colegio/
 import { UsuarioColegiosService } from "../infrestructure/server/colegio/UsuarioColegioService";
 import { UsuarioCursosService } from "../infrestructure/server/colegio/UsuarioCursoService";
 import { MateriasService } from "../infrestructure/server/colegio/MateriaService";
+import { AlumnosApoderadosColegioController } from "../infrestructure/server/colegio/controller/AlumnosApoderadosColegioController";
 import { createSecureMemoryUpload } from "../helpers/secure-upload";
 
 const router = express.Router();
@@ -85,6 +86,65 @@ router.get("/", sessionAuth, ColegiosService.obtener);
 
 /**
  * @swagger
+ * /api/v1/colegios/{colegio_id}/alumnos-apoderados:
+ *   get:
+ *     summary: Obtener alumnos y apoderados de un colegio
+ *     tags: [Colegios]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: colegio_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Alumnos del colegio con sus apoderados relacionados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 metricas:
+ *                   type: object
+ *                   properties:
+ *                     cantidad_alumnos_cargados:
+ *                       type: integer
+ *                     alumnos_por_grado:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           grado_id:
+ *                             type: integer
+ *                           grado:
+ *                             type: string
+ *                           cantidad_alumnos:
+ *                             type: integer
+ *                     alumnos_sin_apoderado:
+ *                       type: array
+ *                       items:
+ *                         type: integer
+ *                 alumnos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: ID de colegio inválido
+ *       401:
+ *         description: Sesión no válida
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.get(
+  "/:colegio_id/alumnos-apoderados",
+  sessionAuth,
+  AlumnosApoderadosColegioController.obtener
+);
+
+/**
+ * @swagger
  * /api/v1/colegios:
  *   post:
  *     summary: Crear un nuevo colegio
@@ -95,8 +155,6 @@ router.get("/", sessionAuth, ColegiosService.obtener);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
- *           schema:
  *             $ref: '#/components/schemas/Colegio'
  *           example:
  *             nombre: "Colegio Ejemplo"
