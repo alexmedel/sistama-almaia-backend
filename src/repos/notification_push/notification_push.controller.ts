@@ -11,16 +11,21 @@ export default class NotificationPushController {
 
   // Guardar token de dispositivo
   saveToken = async (req: Request, res: Response) => {
+    console.log("✅ Guardando token autenticado:", req.body);
     try {
-      const { userId, pushToken } = req.body;
+      const { userId, pushToken, plataforma, deviceName } = req.body;
 
       if (!userId || !pushToken) {
-        res.status(400).json({
-          error: "userId y pushToken son requeridos",
-        });
+        res.status(400).json({ error: "userId y pushToken son requeridos" });
+        return;
       }
 
-      const data = await this.notificationService.saveToken(userId, pushToken);
+      const data = await this.notificationService.saveToken(
+        userId,
+        pushToken,
+        plataforma,
+        deviceName,
+      );
 
       console.log("✅ Token guardado para usuario:", userId);
       res.json({
@@ -30,17 +35,17 @@ export default class NotificationPushController {
       });
     } catch (error: any) {
       console.error("Error en saveToken:", error.message);
-      res.status(500).json({
-        error: error.message,
-      });
+      const status = error.message === "Usuario no encontrado" ? 404 : 500;
+      res.status(status).json({ error: error.message });
     }
   };
 
   // Enviar notificación a un usuario
   saveAuthenticatedToken = async (req: Request, res: Response) => {
+    console.log("✅ Guardando token autenticado:", req.body);
     try {
       const usuarioId = req.user?.usuario_id;
-      const { pushToken } = req.body;
+      const { pushToken, plataforma, deviceName } = req.body;
 
       if (!usuarioId || isNaN(usuarioId)) {
         res.status(401).json({ error: "Usuario no autenticado" });
@@ -54,7 +59,9 @@ export default class NotificationPushController {
 
       const data = await this.notificationService.saveToken(
         usuarioId,
-        pushToken
+        pushToken,
+        plataforma,
+        deviceName,
       );
 
       res.json({
@@ -73,25 +80,24 @@ export default class NotificationPushController {
       const { userId, title, body, data } = req.body;
 
       if (!userId || !title || !body) {
-        res.status(400).json({
-          error: "userId, title y body son requeridos",
-        });
+        res.status(400).json({ error: "userId, title y body son requeridos" });
+        return; // <-- falta
       }
 
-      const token = await this.notificationService.getTokenByUserId(userId);
-
-      if (!token) {
-        res.status(404).json({
-          error: "Token no encontrado para este usuario",
-        });
+      const tokens = await this.notificationService.getTokensByUserId(userId);
+      console.log(`📤 Enviando a usuario ${userId} con token: ${tokens[0]}`);
+      if (tokens.length === 0) {
+        res
+          .status(404)
+          .json({ error: "Tokens no encontrados para este usuario" });
         return;
       }
 
       const result = await this.notificationService.sendNotifications(
-        [token],
+        tokens,
         title,
         body,
-        data || {}
+        data || {},
       );
 
       if (!result.success) {
@@ -140,7 +146,7 @@ export default class NotificationPushController {
         tokens,
         title,
         body,
-        data || {}
+        data || {},
       );
 
       if (!result.success) {
@@ -188,7 +194,7 @@ export default class NotificationPushController {
         tokens,
         title,
         body,
-        data || {}
+        data || {},
       );
 
       if (!result.success) {
@@ -217,7 +223,7 @@ export default class NotificationPushController {
       const notificaciones =
         await this.notificationService.obtenerNotificacionesPendientes(
           Number(destinatario_id),
-          String(tipo)
+          String(tipo),
         );
 
       console.log("✅ Notificaciones obtenidas:", notificaciones);
@@ -239,9 +245,8 @@ export default class NotificationPushController {
     try {
       const { aviso_destinario_id } = req.body;
 
-      const notificacion = await this.notificationService.marcarNotificacion(
-        aviso_destinario_id
-      );
+      const notificacion =
+        await this.notificationService.marcarNotificacion(aviso_destinario_id);
 
       console.log("✅ Notificacion marcada:", notificacion);
       res.json({
@@ -261,9 +266,8 @@ export default class NotificationPushController {
     try {
       const { aviso_destinario_id } = req.body;
 
-      const notificacion = await this.notificationService.marcarEntregable(
-        aviso_destinario_id
-      );
+      const notificacion =
+        await this.notificationService.marcarEntregable(aviso_destinario_id);
 
       console.log("✅ Notificacion marcada:", notificacion);
       res.json({

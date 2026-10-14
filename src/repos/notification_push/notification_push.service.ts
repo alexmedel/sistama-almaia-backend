@@ -21,45 +21,78 @@ export default class NotificationPushService {
     this.expo = new Expo();
     this.supabase = createClient(
       process.env.SUPABASE_HOST!,
-      process.env.SUPABASE_PASSWORD_ADMIN!
+      process.env.SUPABASE_PASSWORD_ADMIN!,
     );
   }
 
   // Guardar token en la base de datos
-  async saveToken(userId: number, pushToken: string) {
-    const { data, error } = await this.supabase
+  async saveToken(
+    userId: number,
+    pushToken: string,
+    plataforma?: string,
+    deviceName?: string,
+  ) {
+    if (!Expo.isExpoPushToken(pushToken)) {
+      throw new Error("Token de Expo inválido");
+    }
+
+    const { data: user, error: userError } = await this.supabase
       .from("usuarios")
-      .update({
-        expo_push_token: pushToken,
-      })
+      .select("usuario_id")
       .eq("usuario_id", userId)
-      .select();
+      .maybeSingle();
+
+    if (userError) {
+      throw new Error(`Error buscando usuario: ${userError.message}`);
+    }
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    const { data, error } = await this.supabase
+      .from("push_tokens")
+      .upsert(
+        {
+          usuario_id: userId,
+          token: pushToken,
+          plataforma:
+            plataforma === "ios" || plataforma === "android"
+              ? plataforma
+              : null,
+          device_name: deviceName ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "token" },
+      )
+      .select()
+      .single();
 
     if (error) {
       throw new Error(`Error guardando token: ${error.message}`);
     }
 
-    if (!data || data.length === 0) {
-      throw new Error("Usuario no encontrado");
-    }
+    // Compatibilidad temporal con la columna antigua; quitar cuando todo esté probado
+    await this.supabase
+      .from("usuarios")
+      .update({ expo_push_token: pushToken })
+      .eq("usuario_id", userId);
 
-    return data[0];
+    return data;
   }
 
   // Obtener token de un usuario
-  async getTokenByUserId(userId: number): Promise<string | null> {
-    console.log("✅ Obteniendo token de usuario:", userId);
+  async getTokensByUserId(userId: number): Promise<string[]> {
+    console.log("✅ Obteniendo tokens de usuario:", userId);
     const { data, error } = await this.supabase
-      .from("usuarios")
-      .select("expo_push_token")
-      .eq("usuario_id", userId)
-      .single();
+      .from("push_tokens")
+      .select("token")
+      .eq("usuario_id", userId);
 
     if (error || !data) {
-      return null;
+      return [];
     }
 
-    return data.expo_push_token;
+    return data.map((r) => r.token);
   }
 
   // Obtener tokens de múltiples usuarios
@@ -96,7 +129,7 @@ export default class NotificationPushService {
     pushTokens: string[],
     title: string,
     body: string,
-    data: NotificationData = {}
+    data: NotificationData = {},
   ): Promise<SendResult> {
     const messages: ExpoPushMessage[] = [];
 
@@ -150,7 +183,7 @@ export default class NotificationPushService {
     userIds: number[],
     title: string,
     body: string,
-    data: NotificationData = {}
+    data: NotificationData = {},
   ): Promise<SendResult> {
     try {
       const tokens = await this.getTokensByUserIds(userIds);
@@ -163,7 +196,7 @@ export default class NotificationPushService {
       }
 
       console.log(
-        `📤 Enviando a ${tokens.length} de ${userIds.length} usuarios solicitados`
+        `📤 Enviando a ${tokens.length} de ${userIds.length} usuarios solicitados`,
       );
 
       return await this.sendNotifications(tokens, title, body, data);
@@ -186,7 +219,7 @@ export default class NotificationPushService {
 
     if (error) {
       throw new Error(
-        `Error obteniendo notificaciones pendientes: ${error.message}`
+        `Error obteniendo notificaciones pendientes: ${error.message}`,
       );
     }
 
