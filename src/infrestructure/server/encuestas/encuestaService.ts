@@ -101,7 +101,8 @@ export const EncuestaService = {
           tipoObjetivo,
           dirigidoA,
           ids: destinatarios.destinatarios ?? [],
-          titulo: `Encuesta disponible: ${general.titulo}`,
+         // titulo: `Encuesta disponible: ${general.titulo}`,
+         titulo: general.titulo,
           contenido:
             general.descripcion || "Tienes una nueva encuesta disponible.",
           fechaProgramacion: buildEncuestaAvisoFechaProgramacion(programacion),

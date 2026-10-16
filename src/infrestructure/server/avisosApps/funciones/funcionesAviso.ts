@@ -6,7 +6,8 @@ export async function obtenerNotificacionesPendientes(
   client: SupabaseClient
 ): Promise<AvisoPendiente[]> {
 
-  const { data, error } = await client.rpc("obtener_notificaciones_pendientes");
+  //const { data, error } = await client.rpc("obtener_notificaciones_pendientes");
+  const { data, error } = await client.rpc("obtener_notificaciones_pendientes_v2");
 
   if (error) {
     throw new Error(error.message);
