@@ -60,7 +60,7 @@ export const EncuestaService = {
       step = "insertEncuesta";
       const { encuesta_id: encuestaId } = await insertEncuesta(
         general,
-        usuarioId
+        usuarioId,
       );
 
       step = "insertProgramacion";
@@ -101,8 +101,8 @@ export const EncuestaService = {
           tipoObjetivo,
           dirigidoA,
           ids: destinatarios.destinatarios ?? [],
-         // titulo: `Encuesta disponible: ${general.titulo}`,
-         titulo: general.titulo,
+          // titulo: `Encuesta disponible: ${general.titulo}`,
+          titulo: general.titulo,
           contenido:
             general.descripcion || "Tienes una nueva encuesta disponible.",
           fechaProgramacion: buildEncuestaAvisoFechaProgramacion(programacion),
@@ -111,7 +111,7 @@ export const EncuestaService = {
       } catch (err) {
         console.error(
           "[Encuestas] error no crítico al crear aviso automático",
-          extractSupabaseErr(err)
+          extractSupabaseErr(err),
         );
       }
 
@@ -128,7 +128,7 @@ export const EncuestaService = {
       errorHandler.handleError(
         err,
         res,
-        `EncuestaService.crearEncuesta:${step}`
+        `EncuestaService.crearEncuesta:${step}`,
       );
     }
   },
@@ -170,7 +170,7 @@ export const EncuestaService = {
         await repo.updateProgramacion(
           encuestaId,
           value.programacion,
-          usuarioId
+          usuarioId,
         );
         updated.push("programacion");
       }
@@ -179,7 +179,7 @@ export const EncuestaService = {
         await repo.syncDestinatarios(
           encuestaId,
           value.destinatarios,
-          usuarioId
+          usuarioId,
         );
         updated.push("destinatarios");
       }
@@ -202,7 +202,7 @@ export const EncuestaService = {
       errorHandler.handleError(
         err,
         res,
-        `EncuestaService.actualizarEncuesta:${step}`
+        `EncuestaService.actualizarEncuesta:${step}`,
       );
     }
   },
@@ -284,5 +284,87 @@ export const EncuestaService = {
       .order("pregunta_orden", { ascending: true });
 
     return FormatResponse(res, 200, data);
+  },
+
+  async marcarEncuestaLeida(req: Request, res: Response, next: NextFunction) {
+    try {
+      const usuarioId = req.user?.usuario_id;
+      if (!usuarioId || isNaN(usuarioId)) {
+        return FormatResponse(res, 401, {
+          mensaje: "Usuario no autenticado o sesión inválida",
+        });
+      }
+
+      const encuestaId = Number(req.params.id);
+      if (!encuestaId || isNaN(encuestaId)) {
+        return FormatResponse(res, 400, { mensaje: "Parámetro id inválido" });
+      }
+
+      const client = new SupabaseAdminService().getClient();
+
+      // 1) Título de la encuesta (el aviso hereda ese mismo título)
+      const { data: encuesta, error: encErr } = await client
+        .from("encuestas")
+        .select("encuesta_nombre")
+        .eq("encuesta_id", encuestaId)
+        .single();
+      if (encErr || !encuesta) {
+        return FormatResponse(res, 404, { mensaje: "Encuesta no encontrada" });
+      }
+
+      // 2) Avisos con ese título
+      const { data: avisos, error: avisosErr } = await client
+        .from("avisos_apps")
+        .select("aviso_id")
+        .in("aviso_titulo", [
+          encuesta.encuesta_nombre,
+          `Encuesta disponible: ${encuesta.encuesta_nombre}`,
+        ]);
+      if (avisosErr) throw avisosErr;
+
+      const avisoIds = (avisos ?? []).map((a: any) => a.aviso_id);
+      if (avisoIds.length === 0) {
+        return FormatResponse(res, 200, {
+          mensaje: "La encuesta no tiene aviso asociado",
+          leido: false,
+        });
+      }
+
+      // 3) Notificación más reciente de este usuario para esos avisos
+      const { data: notif, error: notifErr } = await client
+        .from("usuarios_notificaciones")
+        .select("usuario_notificacion_id")
+        .eq("usuario_id", usuarioId)
+        .in("aviso_id", avisoIds)
+        .order("usuario_notificacion_id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (notifErr) throw notifErr;
+
+      if (!notif) {
+        return FormatResponse(res, 200, {
+          mensaje: "El usuario no tiene notificación de esta encuesta",
+          leido: false,
+        });
+      }
+
+      // 4) Marcar como leída (función SQL que ya existe)
+      const { data: leido, error: rpcErr } = await client.rpc(
+        "marcar_usuario_notificacion_leida",
+        {
+          p_usuario_notificacion_id: notif.usuario_notificacion_id,
+          p_usuario_id: usuarioId,
+        },
+      );
+      if (rpcErr) throw rpcErr;
+
+      return FormatResponse(res, 200, {
+        mensaje: "Encuesta marcada como leída",
+        encuesta_id: encuestaId,
+        leido: !!leido,
+      });
+    } catch (err) {
+      errorHandler.handleError(err, res, "EncuestaService.marcarEncuestaLeida");
+    }
   },
 };

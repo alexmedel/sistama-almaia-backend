@@ -24,6 +24,7 @@ Encuestas.patch(ruta_actualizar, sessionAuth, EncuestaService.actualizarEncuesta
 Encuestas.get(ruta_listar, sessionAuth, EncuestaService.listarEncuestasRPC);
 Encuestas.delete(ruta_eliminar, sessionAuth, EncuestaService.eliminarEncuesta);
 Encuestas.get("/:id/preguntas", sessionAuth, EncuestaService.listarPreguntas);
+Encuestas.post("/:id/leidas", sessionAuth, EncuestaService.marcarEncuestaLeida);
 
 Encuestas.get("/tipos/:id/plantillas", sessionAuth, EncuestaPlantillaService.tipoEncuestaPlantillas);
 Encuestas.get("/plantillas/:id/preguntas", sessionAuth, EncuestaPlantillaService.plantillaPreguntas);
