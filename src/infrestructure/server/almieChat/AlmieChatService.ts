@@ -49,30 +49,35 @@
 // }
 
  
-// Proveedor de IA configurable por variables de entorno (formato compatible con OpenAI).
-//   AI_API_KEY  -> key del proveedor (Gemini, DeepSeek, Groq, etc.)
-//   AI_API_URL  -> endpoint de chat completions
-//   AI_MODEL    -> modelo a usar
-// Si no hay AI_API_KEY pero sí GROQ_API_KEY, se mantiene el comportamiento anterior (Groq).
 import { Request, Response } from "express";
 import axios from "axios";
 
-// Proveedor de IA configurable por variables de entorno (formato compatible con OpenAI).
-//   AI_API_KEY  -> key del proveedor principal (Gemini por defecto)
-//   AI_API_URL  -> endpoint de chat completions (opcional)
-//   AI_MODEL    -> modelo (opcional)
-//   GROQ_API_KEY -> si existe, se usa como respaldo cuando el principal está saturado o falla
+// Proveedores de IA por variables de entorno. Se prueban en este orden:
+//   1) OPENAI_API_KEY (+ OPENAI_MODEL, por defecto gpt-4o-mini)
+//   2) AI_API_KEY     (Gemini por defecto; AI_API_URL / AI_MODEL opcionales)
+//   3) GROQ_API_KEY   (+ GROQ_MODEL)
+// Si uno está saturado o falla, pasa automáticamente al siguiente.
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-type Provider = { name: string; apiKey: string; url: string; model: string };
+type Provider = { name: string; apiKey: string; url: string; model: string; openai?: boolean };
 
 function getProviders(): Provider[] {
   const list: Provider[] = [];
+  if (process.env.OPENAI_API_KEY) {
+    list.push({
+      name: "openai",
+      apiKey: process.env.OPENAI_API_KEY,
+      url: OPENAI_URL,
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      openai: true,
+    });
+  }
   if (process.env.AI_API_KEY) {
     list.push({
-      name: "principal",
+      name: "gemini",
       apiKey: process.env.AI_API_KEY,
       url: process.env.AI_API_URL || GEMINI_URL,
       model: process.env.AI_MODEL || "gemini-3.8-flash",
@@ -93,9 +98,19 @@ const RETRYABLE = [429, 500, 502, 503, 504];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function callProvider(p: Provider, body: any) {
+  const { max_tokens, temperature, ...rest } = body;
+  const payload: any = { ...rest, model: p.model };
+  if (p.openai) {
+    // OpenAI usa max_completion_tokens; los modelos nuevos solo aceptan la temperatura por defecto
+    payload.max_completion_tokens = max_tokens;
+    if (/^gpt-4/.test(p.model)) payload.temperature = temperature;
+  } else {
+    payload.max_tokens = max_tokens;
+    payload.temperature = temperature;
+  }
   return axios.post(
     p.url,
-    { ...body, model: p.model },
+    payload,
     {
       headers: {
         Authorization: `Bearer ${p.apiKey}`,
@@ -118,7 +133,7 @@ export class AlmieChatService {
 
       const providers = getProviders();
       if (providers.length === 0) {
-        res.status(500).json({ error: "Servicio de chat no configurado en el servidor (falta AI_API_KEY)." });
+        res.status(500).json({ error: "Servicio de chat no configurado en el servidor (falta OPENAI_API_KEY)." });
         return;
       }
 
