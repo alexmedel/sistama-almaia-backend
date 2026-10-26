@@ -16,7 +16,7 @@ import { EncuestaUpdateRepository } from "./encuestaUpdate.repository";
 import { buildEncuestaAvisoFechaProgramacion } from "./encuestaAvisoFecha";
 import { EncuestaSchema } from "./schema/encuestadtoSchema";
 import { EncuestaUpdateSchema } from "./schema/encuestaUpdateSchema";
-
+import { hoyEnChile } from "../../../helpers/fecha-chile";
 function extractSupabaseErr(err: any) {
   return {
     name: err?.name,
@@ -207,6 +207,10 @@ export const EncuestaService = {
     }
   },
   async listarEncuestasRPC(req: Request, res: Response, next: NextFunction) {
+    console.log("[Encuestas] listarEncuestasRPC", {
+      query: req.query,
+      user: req.user,
+    });
     try {
       const page = req.query.page ? Number(req.query.page) : 1;
       const perPage = req.query.perPage ? Number(req.query.perPage) : 10;
@@ -214,15 +218,20 @@ export const EncuestaService = {
       if (req.query.fecha !== undefined) {
         const raw = String(req.query.fecha || "").toLowerCase();
         if (raw === "hoy" || raw === "today") {
-          fechaParam = new Date().toISOString().split("T")[0];
+          fechaParam = hoyEnChile();
         } else if (raw) {
           fechaParam = raw;
         } else {
           fechaParam = null as any;
         }
       }
-
-      const data = await listEncuestasPaginated(page, perPage, fechaParam);
+      const soloVisibles = [2, 4].includes(Number((req as any).user?.rol_id));
+      const data = await listEncuestasPaginated(
+        page,
+        perPage,
+        fechaParam,
+        soloVisibles,
+      );
       return FormatResponse(res, 200, data);
     } catch (err) {
       errorHandler.handleError(err, res, "EncuestaService.listarEncuestasRPC");

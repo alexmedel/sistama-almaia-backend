@@ -1,7 +1,10 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import type { EncuestaRespuestaDTO } from "../../../core/modelo/encuestas/encuestaRespuestaDTO";
 import { SupabaseAdminService } from "../../../core/services/supabaseAdmin";
-import { createPaginationFromSupabase, optionPaginationSupabase } from "../../../helpers/paginate-supabase";
+import {
+  createPaginationFromSupabase,
+  optionPaginationSupabase,
+} from "../../../helpers/paginate-supabase";
 
 const supabaseService = new SupabaseAdminService();
 const client: SupabaseClient = supabaseService.getClient();
@@ -11,7 +14,7 @@ const client: SupabaseClient = supabaseService.getClient();
  */
 export async function insertEncuestaRespuesta(
   respuesta: Omit<EncuestaRespuestaDTO, "items">,
-  usuarioId: number
+  usuarioId: number,
 ) {
   const { data, error } = await client
     .from("encuestas_respuestas")
@@ -36,7 +39,7 @@ export async function insertEncuestaRespuesta(
 export async function insertRespuestaItems(
   encuestaRespuestaId: number,
   items: EncuestaRespuestaDTO["items"],
-  usuarioId: number
+  usuarioId: number,
 ) {
   for (const item of items) {
     // 1. insertar item
@@ -47,8 +50,8 @@ export async function insertRespuestaItems(
           encuesta_respuesta_id: encuestaRespuestaId,
           pregunta_encuesta_id: item.pregunta_encuesta_id,
           tipo_pregunta_id: item.tipo_pregunta_id,
-          creado_por: usuarioId
-        }
+          creado_por: usuarioId,
+        },
       ])
       .select("respuesta_item_id")
       .single();
@@ -57,12 +60,15 @@ export async function insertRespuestaItems(
     const respuestaItemId = data.respuesta_item_id;
 
     // 2. tipo 1 y 2 (opciones)
-    if ((item.tipo_pregunta_id === 1 || item.tipo_pregunta_id === 2) && item.opciones) {
+    if (
+      (item.tipo_pregunta_id === 1 || item.tipo_pregunta_id === 2) &&
+      item.opciones
+    ) {
       const opcionesPayload = item.opciones.map((alternativaId: number) => ({
         respuesta_item_id: respuestaItemId,
         pregunta_encuesta_id: item.pregunta_encuesta_id,
         alternativa_id: alternativaId,
-        creado_por: usuarioId
+        creado_por: usuarioId,
       }));
 
       const { error: opcError } = await client
@@ -80,8 +86,8 @@ export async function insertRespuestaItems(
           {
             respuesta_item_id: respuestaItemId,
             respuesta_texto: item.texto,
-            creado_por: usuarioId
-          }
+            creado_por: usuarioId,
+          },
         ]);
 
       if (txtError) throw txtError;
@@ -93,7 +99,7 @@ export async function insertRespuestaItems(
         alumno_id_origen: item.alumno_id_origen,
         alumno_id_destino: relacion.alumno_id_destino,
         label: relacion.label,
-        creado_por: usuarioId
+        creado_por: usuarioId,
       }));
 
       const { error: socError } = await client
@@ -105,14 +111,22 @@ export async function insertRespuestaItems(
   }
 }
 
-export async function listEncuestasPaginated(page: number, perPage: number, fecha_objetivo?: string | null) {
+export async function listEncuestasPaginated(
+  page: number,
+  perPage: number,
+  fecha_objetivo?: string | null,
+  solo_visibles: boolean = false,
+) {
   const { skip, take } = optionPaginationSupabase(page, perPage);
 
   const rpcParams: any = {
     _skip: skip,
     _take: take,
   };
-  if (fecha_objetivo !== undefined) rpcParams._fecha_objetivo = fecha_objetivo ?? null;
+
+  if (fecha_objetivo !== undefined)
+    rpcParams._fecha_objetivo = fecha_objetivo ?? null;
+  rpcParams._solo_visibles = solo_visibles;
 
   const { data, error } = await client.rpc("listar_encuestas_v3", rpcParams);
 
@@ -126,15 +140,21 @@ export async function listEncuestasPaginated(page: number, perPage: number, fech
 }
 
 export async function listRespuestasPorEncuesta(encuestaId: number) {
-  const { data, error } = await client.rpc("listar_respuestas_encuesta_detalle", {
-    p_encuesta_id: encuestaId,
-  });
+  const { data, error } = await client.rpc(
+    "listar_respuestas_encuesta_detalle",
+    {
+      p_encuesta_id: encuestaId,
+    },
+  );
 
   if (error) throw error;
   if (error) throw error;
   if (!data) return {};
 
-  console.log("[listar_respuestas_encuesta_detalle] raw data shape:", JSON.stringify(data).substring(0,500));
+  console.log(
+    "[listar_respuestas_encuesta_detalle] raw data shape:",
+    JSON.stringify(data).substring(0, 500),
+  );
 
   if (Array.isArray(data)) {
     const row = data[0];
@@ -142,11 +162,17 @@ export async function listRespuestasPorEncuesta(encuestaId: number) {
     return (
       (row as any).encuesta_detalle ||
       (row as any).listar_respuestas_encuesta_detalle ||
-      row 
-    ) || {};
+      row ||
+      {}
+    );
   }
-  if (typeof data === 'object') {
-    return (data as any).encuesta_detalle || (data as any).listar_respuestas_encuesta_detalle || data || {};
+  if (typeof data === "object") {
+    return (
+      (data as any).encuesta_detalle ||
+      (data as any).listar_respuestas_encuesta_detalle ||
+      data ||
+      {}
+    );
   }
 
   return {};
