@@ -65,7 +65,7 @@ export const AlumnoRespuestaSeleccionService = {
             )
             .eq("activo", true)
             .eq("respondio", respondio)
-            .gte("fecha_pregunta::date", fechaChile)
+            .eq("fecha_pregunta::date", fechaChile)
             .order("alumno_respuesta_seleccion_id", { ascending: true });
 
         Object.keys(where).forEach((key) => {
